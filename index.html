@@ -30,6 +30,7 @@ h1{font-size:1.35rem;margin:0;font-weight:600;letter-spacing:.01em;text-wrap:bal
 .hint{color:var(--muted);font-size:.85rem;margin:0}
 .pad{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 canvas{display:block;width:100%;height:min(58vh,460px);touch-action:none;cursor:crosshair}
+.coord{position:absolute;top:8px;left:52px;font-family:var(--mono);font-size:.78rem;color:var(--ink);background:var(--panel);padding:2px 7px;border-radius:4px;pointer-events:none;font-variant-numeric:tabular-nums;border:1px solid var(--line)}
 .badge{position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:.72rem;color:var(--muted);
   background:var(--panel);padding:2px 6px;border-radius:4px;pointer-events:none}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 12px}
@@ -68,6 +69,7 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   <div class="pad">
     <canvas id="cv" aria-label="Pole rysowania krzywej"></canvas>
     <span class="badge" id="badge">przykład</span>
+    <span class="coord" id="coord" hidden></span>
   </div>
 
   <div class="grid">
@@ -84,8 +86,9 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     </label>
     <label for="ymin">y min<input id="ymin" type="number" step="any" value="2100"></label>
     <label for="ymax">y max<input id="ymax" type="number" step="any" value="10800"></label>
-    <label for="xmin">x min<input id="xmin" type="number" step="any" value="0"></label>
-    <label for="xmax">x max<input id="xmax" type="number" step="any" value="100"></label>
+    <label for="xmode">Oś x<select id="xmode"><option value="idx">numer punktu 0…N−1</option><option value="own">własny zakres</option></select></label>
+    <label for="xmin">x min<input id="xmin" type="number" step="any" value="0" disabled></label>
+    <label for="xmax">x max<input id="xmax" type="number" step="any" value="127" disabled></label>
     <label for="npts">Punkty<input id="npts" type="number" min="2" max="2000" step="1" value="128"></label>
     <label for="dec">Precyzja<input id="dec" type="number" min="0" max="10" step="1" value="0"></label>
     <label for="smooth">Wygładzenie <span id="smv">2</span><input id="smooth" type="range" min="0" max="12" step="1" value="2"></label>
@@ -209,9 +212,20 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   }
   cv.addEventListener("pointerdown", e => {
     if (example) { ys = new Array(N).fill(NaN); example = false; }
-    cv.setPointerCapture(e.pointerId); last = null; put(at(e)); draw(); e.preventDefault();
+    cv.setPointerCapture(e.pointerId); last = null; put(at(e)); draw(); showCoord(e); e.preventDefault();
   });
+  function showCoord(e) {
+    const r = cv.getBoundingClientRect(), g = geom();
+    const fx = Math.max(0, Math.min(1, (e.clientX - r.left - L) / g.w)), fy = Math.max(0, Math.min(1, (e.clientY - r.top - T) / g.h));
+    const x0 = num("xmin"), x1 = num("xmax"), lo = num("ymin"), hi = num("ymax");
+    const dec = Math.max(0, Math.min(10, parseInt($("dec").value, 10) || 0));
+    const xd = $("xmode").value === "idx" ? 0 : (Math.abs(x1 - x0) <= 20 ? 2 : 1);
+    const c = $("coord"); c.hidden = false;
+    c.textContent = "x " + ($("xmode").value === "idx" ? String(Math.round(fx * (N - 1))) : (x0 + (x1 - x0) * fx).toFixed(xd)) + "   y " + (hi - (hi - lo) * fy).toFixed(dec);
+  }
+  cv.addEventListener("pointerleave", () => { $("coord").hidden = true; });
   cv.addEventListener("pointermove", e => {
+    showCoord(e);
     if (!cv.hasPointerCapture(e.pointerId)) return;
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
     evs.forEach(ev => put(at(ev))); draw();
@@ -239,9 +253,15 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   ["ymin", "ymax"].forEach(id => $(id).addEventListener("input", () => { $("preset").value = "own"; draw(); }));
   ["xmin", "xmax", "dec"].forEach(id => $(id).addEventListener("input", draw));
   $("smooth").addEventListener("input", () => { $("smv").textContent = $("smooth").value; draw(); });
+  function syncX() {
+    const idx = $("xmode").value === "idx";
+    $("xmin").disabled = idx; $("xmax").disabled = idx;
+    if (idx) { $("xmin").value = 0; $("xmax").value = N - 1; }
+  }
+  $("xmode").addEventListener("change", () => { syncX(); draw(); });
   $("npts").addEventListener("change", () => {
     const n = Math.max(2, Math.min(2000, parseInt($("npts").value, 10) || 128));
-    $("npts").value = n; resample(n); draw();
+    $("npts").value = n; resample(n); syncX(); draw();
   });
   $("clear").addEventListener("click", () => { ys = new Array(N).fill(NaN); example = false; draw(); say("Wyczyszczono."); });
 
@@ -259,16 +279,17 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "krzywa";
 
   function settings() {
-    return {xmin: num("xmin"), xmax: num("xmax"), ymin: num("ymin"), ymax: num("ymax"),
+    return {xmode: $("xmode").value, xmin: num("xmin"), xmax: num("xmax"), ymin: num("ymin"), ymax: num("ymax"),
             dec: parseInt($("dec").value, 10) || 0, smooth: parseInt($("smooth").value, 10) || 0, preset: $("preset").value};
   }
 
   function load(v) {
     const s = v.settings || {};
     ["xmin", "xmax", "ymin", "ymax", "dec", "smooth"].forEach(k => { if (s[k] !== undefined) $(k).value = s[k]; });
+    $("xmode").value = s.xmode || "own";
     $("smv").textContent = $("smooth").value; $("preset").value = s.preset || "own"; $("nm").value = v.name || "";
     const raw = Array.isArray(v.raw) && v.raw.length ? v.raw : (v.y || []);
-    N = raw.length || 128; $("npts").value = N; ys = raw.map(Number); example = false; draw();
+    N = raw.length || 128; $("npts").value = N; ys = raw.map(Number); example = false; syncX(); draw();
   }
 
   // zapis pliku: na iPhonie arkusz udostepniania (Zachowaj w Plikach), na Macu zwykle pobieranie
