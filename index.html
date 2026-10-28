@@ -56,6 +56,12 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
 .saved .meta{font-family:var(--mono);font-size:.72rem;color:var(--muted);white-space:nowrap}
 .saved button{padding:5px 10px;font-size:.8rem}
 .empty{color:var(--muted);font-size:.85rem;padding:10px;border:1px dashed var(--line);border-radius:8px;margin:0}
+/* telefon w poziomie: bez tytulu, plotno na prawie cala wysokosc ekranu */
+@media (max-height: 500px){
+  body{padding-block:6px 24px}
+  header{display:none}
+  canvas{height:calc(100svh - 14px)}
+}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head><body>
