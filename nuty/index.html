@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Szkicownik nut">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#14161b">
+<title>Szkicownik nut</title>
+<style>
+/* Uklad: piano roll na cala szerokosc (klawiatura z lewej, linijka taktow u gory), pod nim narzedzia i ustawienia */
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --ink:#1d2230; --muted:#667085; --line:#d5d9e2;
+  --grid:#e3e6ec; --grid2:#c9cfda; --lane:#eef1f5; --laneB:#e2e6ec; --white:#f7f7f5; --black:#2a2e37;
+  --accent:#c8344e; --accent-ink:#ffffff; --note:#2f7fb7; --noteb:#1d5c88; --ok:#1f7a4d;
+  --sans:-apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono:ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14161b; --panel:#1c1f26; --ink:#ebe6dc; --muted:#9aa0ac; --line:#2e333d;
+  --grid:#262a33; --grid2:#3a404c; --lane:#1f232b; --laneB:#191c23; --white:#d9dbe0; --black:#23262e;
+  --accent:#e0566c; --accent-ink:#14161b; --note:#4a9bd6; --noteb:#2b6f9f; --ok:#5fc48e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14161b; --panel:#1c1f26; --ink:#ebe6dc; --muted:#9aa0ac; --line:#2e333d;
+  --grid:#262a33; --grid2:#3a404c; --lane:#1f232b; --laneB:#191c23; --white:#d9dbe0; --black:#23262e;
+  --accent:#e0566c; --accent-ink:#14161b; --note:#4a9bd6; --noteb:#2b6f9f; --ok:#5fc48e; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.45;margin:0;
+  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:12px 28px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+h1{font-size:1.15rem;margin:0;font-weight:600}
+.pad{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+canvas{display:block;width:100%;height:clamp(240px,calc(var(--vh,100svh) - 120px),720px);touch-action:none}
+.coord{position:absolute;font-family:var(--mono);font-size:.78rem;color:var(--ink);background:var(--panel);padding:2px 7px;border-radius:4px;
+  pointer-events:none;font-variant-numeric:tabular-nums;border:1px solid var(--line);white-space:nowrap;z-index:2}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);min-width:0}
+label.chk{flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:.85rem;color:var(--ink)}
+input,select{font:inherit;font-family:var(--mono);font-size:.9rem;color:var(--ink);background:var(--panel);
+  border:1px solid var(--line);border-radius:6px;padding:7px 8px;min-width:0;width:100%;box-sizing:border-box;text-transform:none;letter-spacing:0}
+input[type=checkbox]{width:auto;accent-color:var(--accent)}
+button{font:inherit;font-weight:600;font-size:.9rem;border-radius:7px;padding:9px 14px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.status{font-size:.85rem;color:var(--ok);min-height:1.2em;margin:0}
+.status.err{color:var(--accent)}
+.hint{color:var(--muted);font-size:.8rem;margin:0}
+textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78rem;color:var(--ink);background:var(--panel);
+  border:1px solid var(--line);border-radius:6px;padding:8px;height:88px;resize:vertical}
+@media (max-height: 500px){
+  body{padding-block:6px 24px}
+  header{display:none}
+  canvas{height:max(200px,calc(var(--vh,100svh) - 40px))}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head><body>
+<div class="wrap">
+  <header><h1>Szkicownik nut</h1></header>
+
+  <div class="pad">
+    <canvas id="cv" aria-label="Piano roll – rysowanie nut"></canvas>
+    <span class="coord" id="coord" hidden></span>
+  </div>
+
+  <div class="row">
+    <button id="draw" class="on">Rysuj</button>
+    <button id="erase">Gumka</button>
+    <button id="undo">Cofnij</button>
+    <button id="play">Odtwórz</button>
+    <button id="fit">Pokaż wszystko</button>
+    <button id="clear">Wyczyść</button>
+  </div>
+  <p class="hint">Jeden palec rysuje. Dwa palce: rozsuwanie – powiększenie, przesuwanie – przewijanie. Przeciągnięcie po klawiaturze przewija oktawy, po linijce – takty. Na Macu: kółko/gładzik przewija, z Ctrl – powiększa.</p>
+
+  <div class="grid">
+    <label for="nm">Nazwa<input id="nm" value="melodia" autocomplete="off"></label>
+    <label for="q">Kwantyzacja
+      <select id="q">
+        <option value="1">1/4</option>
+        <option value="2">1/8</option>
+        <option value="3">1/8 triola</option>
+        <option value="4" selected>1/16</option>
+        <option value="6">1/16 triola</option>
+        <option value="8">1/32</option>
+      </select>
+    </label>
+    <label for="bpm">Tempo (BPM)<input id="bpm" type="number" min="20" max="300" step="1" value="120"></label>
+    <label for="beats">Metrum (ćwierćnut)<input id="beats" type="number" min="1" max="16" step="1" value="4"></label>
+    <label for="bars">Takty<input id="bars" type="number" min="1" max="256" step="1" value="8"></label>
+    <label for="vel">Dynamika (velocity)<input id="vel" type="number" min="1" max="127" step="1" value="100"></label>
+  </div>
+  <label class="chk" for="join"><input type="checkbox" id="join" checked>Łącz powtórzony dźwięk w jedną dłuższą nutę (w obrębie jednego pociągnięcia)</label>
+
+  <div class="row">
+    <button class="primary" id="copy">Kopiuj dla OM</button>
+    <button id="file">Zapisz plik .txt</button>
+    <button id="mid">Zapisz plik .mid</button>
+  </div>
+  <p class="status" id="status" role="status"></p>
+
+  <label for="out">Tekst dla OM (pudełko chseq-from-text)<textarea id="out" readonly></textarea></label>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const cv = $("cv"), ctx = cv.getContext("2d");
+  const PPQ = 480, LO = 21, HI = 108;          // A-1 .. C7 (C3 = 60 = 6000 midicentow)
+  const KB = 58, RUL = 22;                      // szerokosc klawiatury, wysokosc linijki
+  const NAMES = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+  const BLACK = [1,3,6,8,10];
+  const name = m => NAMES[m % 12] + (Math.floor(m / 12) - 2);
+  let notes = [], hist = [], mode = "draw";
+  let rowH = 16, beatW = 64, sx = 0, sy = 0;   // powiekszenie i przewiniecie (px)
+  const num = id => parseFloat($(id).value);
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const q = () => PPQ / (parseInt($("q").value, 10) || 4);
+  const total = () => Math.max(1, Math.round(num("bars"))) * Math.max(1, Math.round(num("beats"))) * PPQ;
+
+  // przyklad na start
+  [[0,60],[1,64],[2,67],[3,72],[4,71],[5,67],[6,64],[7,62]].forEach(([b,p]) => notes.push({s: b * PPQ, l: PPQ, p}));
+  let example = true;
+
+  // ---------- geometria ----------
+  function setVh() {
+    const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    document.documentElement.style.setProperty("--vh", Math.round(h) + "px");
+  }
+  function size() {
+    setVh();
+    const d = window.devicePixelRatio || 1;
+    cv.width = Math.round(cv.clientWidth * d); cv.height = Math.round(cv.clientHeight * d);
+    ctx.setTransform(d, 0, 0, d, 0, 0); clamp(); draw();
+  }
+  const W = () => cv.clientWidth, H = () => cv.clientHeight;
+  const tx = t => KB + t / PPQ * beatW - sx;                  // tick -> x
+  const my = m => RUL + (HI - m) * rowH - sy;                // midi -> y (gora wiersza)
+  const xt = x => (x - KB + sx) / beatW * PPQ;               // x -> tick
+  const ym = y => HI - Math.floor((y - RUL + sy) / rowH);    // y -> midi
+  function clamp() {
+    rowH = Math.max(6, Math.min(48, rowH)); beatW = Math.max(12, Math.min(400, beatW));
+    const maxX = Math.max(0, total() / PPQ * beatW - (W() - KB) + 20);
+    const maxY = Math.max(0, (HI - LO + 1) * rowH - (H() - RUL));
+    sx = Math.max(0, Math.min(maxX, sx)); sy = Math.max(0, Math.min(maxY, sy));
+  }
+  function pt(e) { const r = cv.getBoundingClientRect(); return {x: (e.clientX - r.left) * W() / r.width, y: (e.clientY - r.top) * H() / r.height}; }
+
+  // ---------- rysowanie ----------
+  function draw(playT) {
+    const w = W(), h = H(), beats = Math.max(1, Math.round(num("beats"))), end = total();
+    ctx.clearRect(0, 0, w, h);
+    // pasy klawiszy
+    for (let m = HI; m >= LO; m--) {
+      const y = my(m); if (y > h || y + rowH < RUL) continue;
+      ctx.fillStyle = BLACK.includes(m % 12) ? css("--laneB") : css("--lane");
+      ctx.fillRect(KB, y, w - KB, rowH);
+      if (m % 12 === 0) { ctx.fillStyle = css("--grid2"); ctx.fillRect(KB, y + rowH - 1, w - KB, 1); }
+    }
+    // poza zakresem taktow
+    const xe = tx(end); if (xe < w) { ctx.fillStyle = css("--bg"); ctx.globalAlpha = .55; ctx.fillRect(xe, RUL, w - xe, h); ctx.globalAlpha = 1; }
+    // siatka
+    const step = q();
+    for (let t = 0; t <= end; t += step) {
+      const x = tx(t); if (x < KB - 1) continue; if (x > w) break;
+      const bar = t % (beats * PPQ) === 0, beat = t % PPQ === 0;
+      if (!beat && beatW * step / PPQ < 6) continue;
+      ctx.fillStyle = bar ? css("--muted") : beat ? css("--grid2") : css("--grid");
+      ctx.fillRect(Math.round(x), RUL, 1, h - RUL);
+    }
+    // nuty
+    notes.forEach(n => {
+      const x = tx(n.s), y = my(n.p), x2 = tx(n.s + n.l);
+      if (x2 < KB || x > w || y > h || y + rowH < RUL) return;
+      ctx.fillStyle = css("--note"); ctx.fillRect(Math.max(KB, x) + .5, y + 1, Math.max(2, x2 - Math.max(KB, x) - 1), rowH - 2);
+      ctx.fillStyle = css("--noteb"); ctx.fillRect(Math.max(KB, x) + .5, y + 1, 2, rowH - 2);
+    });
+    // linijka
+    ctx.fillStyle = css("--panel"); ctx.fillRect(KB, 0, w - KB, RUL);
+    ctx.font = "11px " + css("--mono"); ctx.textBaseline = "middle"; ctx.textAlign = "left";
+    for (let b = 0; b * beats * PPQ <= end; b++) {
+      const x = tx(b * beats * PPQ); if (x > w) break; if (x < KB - 40) continue;
+      ctx.fillStyle = css("--muted"); ctx.fillRect(Math.round(x), 4, 1, RUL - 4);
+      if (x >= KB - 2) { ctx.fillStyle = css("--ink"); ctx.fillText(String(b + 1), x + 4, RUL / 2); }
+    }
+    ctx.fillStyle = css("--line"); ctx.fillRect(KB, RUL - 1, w - KB, 1);
+    // klawiatura
+    ctx.fillStyle = css("--panel"); ctx.fillRect(0, 0, KB, h);
+    for (let m = HI; m >= LO; m--) {
+      const y = my(m); if (y > h || y + rowH < RUL) continue;
+      const black = BLACK.includes(m % 12);
+      ctx.fillStyle = css("--white"); ctx.fillRect(0, y, KB - 2, rowH);
+      if (black) { ctx.fillStyle = css("--black"); ctx.fillRect(0, y + 1, KB * .62, rowH - 2); }
+      if (!black) { ctx.fillStyle = css("--grid2"); ctx.fillRect(0, y + rowH - 1, KB - 2, 1); }
+      if (m % 12 === 0 && rowH >= 9) { ctx.fillStyle = "#555"; ctx.textAlign = "right"; ctx.font = Math.min(11, rowH - 2) + "px " + css("--mono"); ctx.fillText(name(m), KB - 6, y + rowH / 2); ctx.textAlign = "left"; }
+    }
+    ctx.fillStyle = css("--line"); ctx.fillRect(KB - 1, 0, 1, h);
+    ctx.fillStyle = css("--panel"); ctx.fillRect(0, 0, KB, RUL);
+    // glowica odtwarzania
+    if (playT !== undefined) { const x = tx(playT); if (x >= KB) { ctx.fillStyle = css("--accent"); ctx.fillRect(x, 0, 2, h); } }
+    $("out").value = text();
+  }
+
+  // ---------- edycja nut ----------
+  function cut(a, b) {            // usun z nut wszystko w [a, b)
+    const out = [];
+    notes.forEach(n => {
+      const e = n.s + n.l;
+      if (e <= a || n.s >= b) { out.push(n); return; }
+      if (n.s < a) out.push({s: n.s, l: a - n.s, p: n.p, k: n.k});
+      if (e > b) out.push({s: b, l: e - b, p: n.p, k: n.k});
+    });
+    notes = out;
+  }
+  let stroke = null;
+  function paint(t, p) {
+    const s = q(), a = Math.floor(t / s) * s;
+    if (a < 0 || a >= total()) return;
+    if (mode === "erase") { cut(a, a + s); return; }
+    p = Math.max(LO, Math.min(HI, p));
+    if (stroke.last === a && stroke.lastP === p) return;
+    cut(a, a + s);
+    const prev = stroke.note;
+    if (prev && $("join").checked && prev.p === p && prev.s + prev.l === a && notes.includes(prev)) prev.l += s;
+    else { const n = {s: a, l: s, p, k: stroke.id}; notes.push(n); stroke.note = n; }
+    stroke.last = a; stroke.lastP = p;
+    notes.sort((x, y) => x.s - y.s);
+  }
+  function stroke2(p0, p1) {      // wypelnij kroki miedzy dwoma punktami
+    const s = q(), t0 = xt(p0.x), t1 = xt(p1.x), m0 = ym(p0.y), m1 = ym(p1.y);
+    const a0 = Math.floor(t0 / s), a1 = Math.floor(t1 / s), n = Math.abs(a1 - a0);
+    if (n === 0) { paint(t1, m1); return; }
+    const dir = Math.sign(a1 - a0);
+    for (let i = 1; i <= n; i++) paint((a0 + dir * i) * s, Math.round(m0 + (m1 - m0) * i / n));
+  }
+  function snapshot() { hist.push(JSON.stringify(notes)); if (hist.length > 100) hist.shift(); }
+
+  // ---------- dotyk / mysz ----------
+  const ptrs = new Map(); let drag = null, pinch = null;
+  function showCoord(p, touch) {
+    const c = $("coord");
+    if (p.x < KB || p.y < RUL) { c.hidden = true; return; }
+    const t = Math.max(0, xt(p.x)), beats = Math.max(1, Math.round(num("beats")));
+    const s = q(), a = Math.floor(t / s) * s, bar = Math.floor(a / (beats * PPQ)) + 1;
+    const beat = Math.floor((a % (beats * PPQ)) / PPQ) + 1, sub = Math.round((a % PPQ) / s) + 1;
+    const m = Math.max(LO, Math.min(HI, ym(p.y)));
+    c.hidden = false; c.textContent = `${name(m)} (${m * 100})   ${bar}.${beat}.${sub}`;
+    const lift = touch ? 56 : 28;
+    requestAnimationFrame(() => {
+      const w = c.offsetWidth, h = c.offsetHeight;
+      let left = p.x - w / 2, top = p.y - lift - h;
+      if (top < 4) { const side = p.x - lift - w; if (side >= 4) { left = side; top = Math.max(4, p.y - h / 2); } else top = Math.min(H() - h - 4, p.y + lift); }
+      left = Math.max(4, Math.min(W() - w - 4, left));
+      c.style.left = left + "px"; c.style.top = top + "px";
+    });
+  }
+  cv.addEventListener("pointerdown", e => {
+    cv.setPointerCapture(e.pointerId); const p = pt(e); ptrs.set(e.pointerId, p);
+    if (ptrs.size === 2) {         // dwa palce: powiekszanie i przewijanie (rysunek z pierwszego palca cofniety)
+      if (drag && drag.kind === "draw" && drag.snap) { notes = JSON.parse(drag.snap); hist.pop(); }
+      const [a, b] = [...ptrs.values()];
+      pinch = {dx: Math.abs(a.x - b.x), dy: Math.abs(a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, rowH, beatW, sx, sy};
+      drag = null; $("coord").hidden = true; draw(); return;
+    }
+    if (p.x < KB) { drag = {kind: "scrollY", y: p.y, sy}; return; }
+    if (p.y < RUL) { drag = {kind: "scrollX", x: p.x, sx}; return; }
+    if (example) { notes = []; example = false; }
+    snapshot(); drag = {kind: "draw", snap: hist[hist.length - 1], last: p};
+    stroke = {id: Date.now(), note: null, last: null};
+    paint(xt(p.x), ym(p.y)); draw(); showCoord(p, e.pointerType === "touch"); e.preventDefault();
+  });
+  cv.addEventListener("pointermove", e => {
+    const p = pt(e);
+    if (!ptrs.has(e.pointerId)) { if (e.pointerType === "mouse") showCoord(p, false); return; }
+    ptrs.set(e.pointerId, p);
+    if (pinch && ptrs.size >= 2) {
+      const [a, b] = [...ptrs.values()];
+      const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+      const zx = pinch.dx > 40 ? dx / pinch.dx : 1, zy = pinch.dy > 40 ? dy / pinch.dy : 1;
+      beatW = pinch.beatW * zx; rowH = pinch.rowH * zy;
+      const tAt = (pinch.cx - KB + pinch.sx) / pinch.beatW, mAt = (pinch.cy - RUL + pinch.sy) / pinch.rowH;
+      sx = tAt * beatW - (cx - KB); sy = mAt * rowH - (cy - RUL);
+      clamp(); draw(); return;
+    }
+    if (!drag) return;
+    if (drag.kind === "scrollY") { sy = drag.sy - (p.y - drag.y); clamp(); draw(); return; }
+    if (drag.kind === "scrollX") { sx = drag.sx - (p.x - drag.x); clamp(); draw(); return; }
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    evs.forEach(ev => { const q2 = pt(ev); stroke2(drag.last, q2); drag.last = q2; });
+    draw(); showCoord(p, e.pointerType === "touch");
+  });
+  const up = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (ptrs.size === 0) { if (drag && drag.kind === "draw") keep(); drag = null; stroke = null; if (e.pointerType !== "mouse") $("coord").hidden = true; }
+  };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !ptrs.size) $("coord").hidden = true; });
+  cv.addEventListener("wheel", e => {
+    e.preventDefault();
+    const p = pt(e);
+    if (e.ctrlKey) {               // gladzik: szczypanie = ctrl+wheel
+      const z = Math.exp(-e.deltaY / 200);
+      if (e.shiftKey || p.x < KB) { const mAt = (p.y - RUL + sy) / rowH; rowH *= z; clamp(); sy = mAt * rowH - (p.y - RUL); }
+      else { const tAt = (p.x - KB + sx) / beatW; beatW *= z; rowH *= z; clamp(); sx = tAt * beatW - (p.x - KB); }
+    } else { sx += e.shiftKey ? e.deltaY : e.deltaX; sy += e.shiftKey ? 0 : e.deltaY; }
+    clamp(); draw();
+  }, {passive: false});
+
+  // ---------- narzedzia ----------
+  function setMode(m) { mode = m; $("draw").classList.toggle("on", m === "draw"); $("erase").classList.toggle("on", m === "erase"); }
+  $("draw").onclick = () => setMode("draw"); $("erase").onclick = () => setMode("erase");
+  $("undo").onclick = () => { if (!hist.length) { say("Nie ma czego cofnąć."); return; } notes = JSON.parse(hist.pop()); draw(); keep(); };
+  $("clear").onclick = () => { snapshot(); notes = []; example = false; draw(); keep(); say("Wyczyszczono. „Cofnij” przywraca."); };
+  $("fit").onclick = fit;
+  function fit() {
+    const w = W() - KB - 10, h = H() - RUL - 6, end = total();
+    beatW = w / (end / PPQ);
+    if (notes.length) {
+      const lo = Math.min(...notes.map(n => n.p)) - 2, hi = Math.max(...notes.map(n => n.p)) + 2;
+      rowH = h / (hi - lo + 1); clamp(); sy = (HI - hi) * rowH;
+    } else { rowH = 16; clamp(); sy = (HI - 72) * rowH; }
+    sx = 0; clamp(); draw();
+  }
+  ["q", "bpm", "beats", "bars", "vel", "nm", "join"].forEach(id => $(id).addEventListener("input", () => { clamp(); draw(); keep(); }));
+  function say(t, err) { const s = $("status"); s.textContent = t; s.classList.toggle("err", !!err); }
+
+  // ---------- odtwarzanie ----------
+  let ac = null, playing = null;
+  function tone(m, t0, dur, vol) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = "triangle"; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + .01);
+    g.gain.setValueAtTime(vol, Math.max(t0 + .01, t0 + dur - .03)); g.gain.linearRampToValueAtTime(0, t0 + dur);
+    o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + .02);
+    return o;
+  }
+  function stop() { if (!playing) return; playing.osc.forEach(o => { try { o.stop(); } catch (e) {} }); cancelAnimationFrame(playing.raf); playing = null; $("play").textContent = "Odtwórz"; draw(); }
+  $("play").onclick = () => {
+    if (playing) { stop(); return; }
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch (e) { say("Dźwięk niedostępny w tej przeglądarce.", true); return; }
+    const spt = 60 / Math.max(20, num("bpm")) / PPQ, t0 = ac.currentTime + .08, vol = .18 * Math.min(127, num("vel")) / 127;
+    const osc = notes.map(n => tone(n.p, t0 + n.s * spt, n.l * spt, vol));
+    const endT = Math.max(0, ...notes.map(n => n.s + n.l));
+    playing = {osc, raf: 0};
+    $("play").textContent = "Stop";
+    const tick = () => {
+      if (!playing) return;
+      const t = (ac.currentTime - t0) / spt;
+      if (t > endT) { stop(); return; }
+      draw(Math.max(0, t)); playing.raf = requestAnimationFrame(tick);
+    };
+    tick();
+  };
+
+  // ---------- eksport ----------
+  function data() {
+    const spt = 60000 / Math.max(20, num("bpm")) / PPQ, sorted = notes.slice().sort((a, b) => a.s - b.s || a.p - b.p);
+    const r = v => Math.round(v * 1000) / 1000;
+    return {lmidic: sorted.map(n => n.p * 100), lonset: sorted.map(n => r(n.s * spt)), ldur: sorted.map(n => r(n.l * spt)), sorted};
+  }
+  function text() {
+    if (!notes.length) return "";
+    const d = data(), nm = ($("nm").value || "melodia").replace(/[\r\n;]/g, " ");
+    return `;; nuty-pad: ${nm}  (tempo ${num("bpm")}, metrum ${num("beats")}/4, velocity ${num("vel")})\n(${d.lmidic.join(" ")})\n(${d.lonset.join(" ")})\n(${d.ldur.join(" ")})\n`;
+  }
+  function midi() {             // plik MIDI typ 0, 480 PPQ
+    const d = data(), vel = Math.max(1, Math.min(127, Math.round(num("vel")))), ev = [];
+    d.sorted.forEach(n => { ev.push([n.s, 1, n.p]); ev.push([n.s + n.l, 0, n.p]); });
+    ev.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const vlq = v => { const b = [v & 127]; while ((v >>= 7)) b.unshift((v & 127) | 128); return b; };
+    const us = Math.round(60000000 / Math.max(20, num("bpm")));
+    let trk = [0, 255, 81, 3, (us >> 16) & 255, (us >> 8) & 255, us & 255];
+    const beats = Math.max(1, Math.round(num("beats")));
+    trk.push(0, 255, 88, 4, beats, 2, 24, 8);
+    let last = 0;
+    ev.forEach(([t, on, p]) => { trk.push(...vlq(t - last), on ? 0x90 : 0x80, p, on ? vel : 0); last = t; });
+    trk.push(0, 255, 47, 0);
+    const len = trk.length;
+    return new Uint8Array([77,84,104,100,0,0,0,6,0,0,0,1,(PPQ>>8)&255,PPQ&255, 77,84,114,107,(len>>>24)&255,(len>>16)&255,(len>>8)&255,len&255, ...trk]);
+  }
+  const slug = s => (s || "melodia").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "melodia";
+  async function save(blob, fname) {
+    const file = new File([blob], fname, {type: blob.type});
+    try { if (navigator.canShare && navigator.canShare({files: [file]})) { await navigator.share({files: [file]}); say("Gotowe. Na iPhonie: „Zachowaj w Plikach” → iCloud Drive."); return; } }
+    catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = fname;
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    say("Zapisano " + fname + ".");
+  }
+  $("copy").onclick = () => {
+    const t = text(); if (!t) { say("Najpierw narysuj nuty.", true); return; }
+    const sel = () => { $("out").focus(); $("out").select(); say("Zaznaczono tekst – skopiuj go ręcznie."); };
+    try { navigator.clipboard.writeText(t).then(() => say("Skopiowano. Na Macu wklej do text-box i podłącz do chseq-from-text."), sel); } catch (e) { sel(); }
+  };
+  $("file").onclick = () => { const t = text(); if (!t) { say("Najpierw narysuj nuty.", true); return; } save(new Blob([t], {type: "text/plain"}), slug($("nm").value) + ".nuty.txt"); };
+  $("mid").onclick = () => { if (!notes.length) { say("Najpierw narysuj nuty.", true); return; } save(new Blob([midi()], {type: "audio/midi"}), slug($("nm").value) + ".mid"); };
+
+  // ---------- pamiec ----------
+  const FIELDS = ["nm", "q", "bpm", "beats", "bars", "vel"];
+  function keep() { try { localStorage.setItem("nuty-pad", JSON.stringify({notes, set: Object.fromEntries(FIELDS.map(k => [k, $(k).value])), join: $("join").checked})); } catch (e) {} }
+  try {
+    const d = JSON.parse(localStorage.getItem("nuty-pad") || "null");
+    if (d && Array.isArray(d.notes)) { notes = d.notes; example = false; FIELDS.forEach(k => { if (d.set && d.set[k] !== undefined) $(k).value = d.set[k]; }); $("join").checked = d.join !== false; }
+  } catch (e) {}
+
+  window.addEventListener("resize", size);
+  window.addEventListener("orientationchange", () => setTimeout(size, 250));
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", size);
+  if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => draw());
+  size(); sy = (HI - 76) * rowH; clamp(); draw();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  const had = !!navigator.serviceWorker.controller; let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (had && !reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.register("sw.js", {updateViaCache: "none"}).then(r => r.update()).catch(() => {});
+}
+</script>
+</body></html>
