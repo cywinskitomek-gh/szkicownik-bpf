@@ -61,6 +61,6 @@ Format tekstu:
 
 ## Aktualizacja strony
 
-Po zmianie plików podnieś w `sw.js` numer wersji (`szkicownik-bpf-v10` → `v11`), wgraj zmienione pliki
-(Add file → Upload files → Commit changes). Na iPhonie otwórz szkicownik z internetem; jeśli pokaże starą
-wersję, zamknij go i otwórz ponownie.
+Po zmianie plików podnieś w `sw.js` numer wersji (`szkicownik-bpf-v11` → `v12`), wgraj zmienione pliki
+(Add file → Upload files → Commit changes). Z internetem szkicownik zawsze pobiera najnowszą wersję
+(bez internetu korzysta z zapamiętanej), więc po aktualizacji wystarczy go otworzyć.

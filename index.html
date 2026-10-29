@@ -411,5 +411,11 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   try { const d = JSON.parse(localStorage.getItem("bpf-pad") || "null"); if (d && d.raw) load(d); } catch (e) {}
 })();
 </script>
-<script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});</script>
+<script>
+if ("serviceWorker" in navigator) {
+  const had = !!navigator.serviceWorker.controller; let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (had && !reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.register("sw.js", {updateViaCache: "none"}).then(r => r.update()).catch(() => {});
+}
+</script>
 </body></html>
