@@ -61,6 +61,6 @@ Format tekstu:
 
 ## Aktualizacja strony
 
-Po zmianie plików podnieś w `sw.js` numer wersji (`szkicownik-bpf-v7` → `v8`), wgraj zmienione pliki
+Po zmianie plików podnieś w `sw.js` numer wersji (`szkicownik-bpf-v8` → `v9`), wgraj zmienione pliki
 (Add file → Upload files → Commit changes). Na iPhonie otwórz szkicownik z internetem; jeśli pokaże starą
 wersję, zamknij go i otwórz ponownie.

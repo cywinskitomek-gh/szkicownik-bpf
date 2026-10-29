@@ -202,7 +202,6 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   function geom() { return {w: cv.clientWidth - L - R, h: cv.clientHeight - T - B}; }
   // polozenie palca wzgledem samego plotna (odporne na skalowanie widoku przez przegladarke)
   function pt(e) {
-    if (e.target === cv && isFinite(e.offsetX) && isFinite(e.offsetY)) return {x: e.offsetX, y: e.offsetY};
     const r = cv.getBoundingClientRect();
     return {x: (e.clientX - r.left) * cv.clientWidth / r.width, y: (e.clientY - r.top) * cv.clientHeight / r.height};
   }
