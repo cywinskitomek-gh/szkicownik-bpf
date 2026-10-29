@@ -30,7 +30,7 @@ h1{font-size:1.15rem;margin:0;font-weight:600;letter-spacing:.01em;text-wrap:bal
 .hint{color:var(--muted);font-size:.85rem;margin:0}
 .pad{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 canvas{display:block;width:100%;height:clamp(240px,calc(var(--vh,100svh) - 120px),640px);touch-action:none;cursor:crosshair}
-.coord{position:absolute;top:8px;left:52px;font-family:var(--mono);font-size:.78rem;color:var(--ink);background:var(--panel);padding:2px 7px;border-radius:4px;pointer-events:none;font-variant-numeric:tabular-nums;border:1px solid var(--line)}
+.coord{position:absolute;top:8px;left:52px;white-space:nowrap;z-index:2;font-family:var(--mono);font-size:.78rem;color:var(--ink);background:var(--panel);padding:2px 7px;border-radius:4px;pointer-events:none;font-variant-numeric:tabular-nums;border:1px solid var(--line)}
 .badge{position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:.72rem;color:var(--muted);
   background:var(--panel);padding:2px 6px;border-radius:4px;pointer-events:none}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 12px}
@@ -265,6 +265,15 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     const dec = getDec();
     const xd = $("xmode").value === "idx" ? 0 : (Math.abs(x1 - x0) <= 20 ? 2 : 1);
     const c = $("coord"); c.hidden = false;
+    // okienko tuz nad palcem (pod nim, gdy palec jest przy gornej krawedzi), zawsze w obrebie plotna
+    const lift = e.pointerType === "touch" ? 56 : 28;
+    requestAnimationFrame(() => {
+      const w = c.offsetWidth, h = c.offsetHeight, W = cv.clientWidth, H = cv.clientHeight;
+      let left = p.x - w / 2, top = p.y - lift - h;
+      if (top < 4) top = Math.min(H - h - 4, p.y + lift);
+      left = Math.max(4, Math.min(W - w - 4, left));
+      c.style.left = left + "px"; c.style.top = top + "px";
+    });
     c.textContent = "x " + ($("xmode").value === "idx" ? String(Math.round(fx * (N - 1))) : (x0 + (x1 - x0) * fx).toFixed(xd)) + "   y " + roundY(hi - (hi - lo) * fy, dec, lo, hi).toFixed(Math.max(0, dec));
   }
   cv.addEventListener("pointerleave", () => { $("coord").hidden = true; });
