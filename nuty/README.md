@@ -35,4 +35,4 @@ Kwantyzacja (1/4, 1/8, 1/8 triola, 1/16, 1/16 triola, 1/32), tempo, metrum (ćwi
 
 ## Aktualizacja
 
-Po zmianie plików podnieś w `sw.js` numer wersji (`szkicownik-nut-v1` → `v2`).
+Po zmianie plików podnieś w `sw.js` numer wersji (`szkicownik-nut-v2` → `v3`).

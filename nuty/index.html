@@ -188,15 +188,28 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
       if (x >= KB - 2) { ctx.fillStyle = css("--ink"); ctx.fillText(String(b + 1), x + 4, RUL / 2); }
     }
     ctx.fillStyle = css("--line"); ctx.fillRect(KB, RUL - 1, w - KB, 1);
-    // klawiatura
+    // klawiatura: 7 bialych klawiszy rownej wysokosci na oktawe, czarne miedzy nimi (siatka zostaje rowna)
     ctx.fillStyle = css("--panel"); ctx.fillRect(0, 0, KB, h);
+    const wk = 12 * rowH / 7;
+    for (let o = Math.floor(LO / 12); o * 12 <= HI; o++) {
+      const bottom = my(o * 12) + rowH;               // dolna krawedz klawisza C
+      for (let i = 0; i < 7; i++) {
+        const y1 = bottom - (i + 1) * wk, y2 = bottom - i * wk;
+        const top = Math.max(y1, my(Math.min(HI, o * 12 + 11))), bot = Math.min(y2, my(Math.max(LO, o * 12)) + rowH);
+        if (bot <= top || bot < RUL || top > h) continue;
+        ctx.fillStyle = css("--white"); ctx.fillRect(0, top, KB - 2, bot - top);
+        ctx.fillStyle = css("--grid2"); ctx.fillRect(0, Math.round(y1), KB - 2, 1);
+        if (i === 0 && wk >= 10 && o * 12 >= LO) {
+          ctx.fillStyle = "#555"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+          ctx.font = Math.min(11, Math.max(8, wk - 4)) + "px " + css("--mono");
+          ctx.fillText(name(o * 12), KB - 6, (y1 + y2) / 2); ctx.textAlign = "left";
+        }
+      }
+    }
     for (let m = HI; m >= LO; m--) {
+      if (!BLACK.includes(m % 12)) continue;
       const y = my(m); if (y > h || y + rowH < RUL) continue;
-      const black = BLACK.includes(m % 12);
-      ctx.fillStyle = css("--white"); ctx.fillRect(0, y, KB - 2, rowH);
-      if (black) { ctx.fillStyle = css("--black"); ctx.fillRect(0, y + 1, KB * .62, rowH - 2); }
-      if (!black) { ctx.fillStyle = css("--grid2"); ctx.fillRect(0, y + rowH - 1, KB - 2, 1); }
-      if (m % 12 === 0 && rowH >= 9) { ctx.fillStyle = "#555"; ctx.textAlign = "right"; ctx.font = Math.min(11, rowH - 2) + "px " + css("--mono"); ctx.fillText(name(m), KB - 6, y + rowH / 2); ctx.textAlign = "left"; }
+      ctx.fillStyle = css("--black"); ctx.fillRect(0, y, KB * .6, rowH);
     }
     ctx.fillStyle = css("--line"); ctx.fillRect(KB - 1, 0, 1, h);
     ctx.fillStyle = css("--panel"); ctx.fillRect(0, 0, KB, RUL);
