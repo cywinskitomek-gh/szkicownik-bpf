@@ -14,7 +14,7 @@ Adres: https://cywinskitomek-gh.github.io/szkicownik-bpf/
 ## Rysowanie
 
 - Rysuj od lewej do prawej. Fragment poprawiasz, rysując go jeszcze raz.
-- Okienko tuż nad palcem/kursorem pokazuje na żywo współrzędne punktu (przy górnej krawędzi – pod palcem).
+- Okienko tuż nad palcem/kursorem pokazuje na żywo współrzędne punktu (przy górnej krawędzi – z lewej strony palca, a w lewym górnym rogu – pod palcem).
 - Pierwsza krzywa po otwarciu to przykład (napis „przykład”) – znika przy pierwszym dotknięciu.
 - Ostatnia krzywa zostaje zapamiętana w przeglądarce i wraca po ponownym otwarciu.
 
@@ -61,6 +61,6 @@ Format tekstu:
 
 ## Aktualizacja strony
 
-Po zmianie plików podnieś w `sw.js` numer wersji (`szkicownik-bpf-v9` → `v10`), wgraj zmienione pliki
+Po zmianie plików podnieś w `sw.js` numer wersji (`szkicownik-bpf-v10` → `v11`), wgraj zmienione pliki
 (Add file → Upload files → Commit changes). Na iPhonie otwórz szkicownik z internetem; jeśli pokaże starą
 wersję, zamknij go i otwórz ponownie.

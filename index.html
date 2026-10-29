@@ -270,7 +270,12 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     requestAnimationFrame(() => {
       const w = c.offsetWidth, h = c.offsetHeight, W = cv.clientWidth, H = cv.clientHeight;
       let left = p.x - w / 2, top = p.y - lift - h;
-      if (top < 4) top = Math.min(H - h - 4, p.y + lift);
+      if (top < 4) {
+        // przy gornej krawedzi: z lewej strony palca; dopiero w lewym gornym rogu pod palcem
+        const side = p.x - lift - w;
+        if (side >= 4) { left = side; top = Math.max(4, p.y - h / 2); }
+        else top = Math.min(H - h - 4, p.y + lift);
+      }
       left = Math.max(4, Math.min(W - w - 4, left));
       c.style.left = left + "px"; c.style.top = top + "px";
     });
