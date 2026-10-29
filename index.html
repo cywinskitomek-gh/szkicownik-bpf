@@ -29,7 +29,7 @@ header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
 h1{font-size:1.15rem;margin:0;font-weight:600;letter-spacing:.01em;text-wrap:balance}
 .hint{color:var(--muted);font-size:.85rem;margin:0}
 .pad{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-canvas{display:block;width:100%;height:clamp(240px,calc(100svh - 110px),640px);touch-action:none;cursor:crosshair}
+canvas{display:block;width:100%;height:clamp(240px,calc(var(--vh,100svh) - 120px),640px);touch-action:none;cursor:crosshair}
 .coord{position:absolute;top:8px;left:52px;font-family:var(--mono);font-size:.78rem;color:var(--ink);background:var(--panel);padding:2px 7px;border-radius:4px;pointer-events:none;font-variant-numeric:tabular-nums;border:1px solid var(--line)}
 .badge{position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:.72rem;color:var(--muted);
   background:var(--panel);padding:2px 6px;border-radius:4px;pointer-events:none}
@@ -60,7 +60,7 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
 @media (max-height: 500px){
   body{padding-block:6px 24px}
   header{display:none}
-  canvas{height:calc(100svh - 14px)}
+  canvas{height:max(200px,calc(var(--vh,100svh) - 40px))}
 }
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
@@ -187,17 +187,29 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     return {vals, d: Math.max(0, -Math.floor(Math.log10(step) + 1e-9))};
   }
 
+  // wysokosc faktycznie widocznego obszaru (bez paskow przegladarki)
+  function setVh() {
+    const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+    document.documentElement.style.setProperty("--vh", Math.round(h) + "px");
+  }
   function size() {
-    const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
-    cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d);
+    setVh();
+    const d = window.devicePixelRatio || 1;
+    cv.width = Math.round(cv.clientWidth * d); cv.height = Math.round(cv.clientHeight * d);
     ctx.setTransform(d, 0, 0, d, 0, 0); draw();
   }
   const L = 46, R = 10, T = 12, B = 22; // marginesy pola (osie)
-  function geom() { const r = cv.getBoundingClientRect(); return {w: r.width - L - R, h: r.height - T - B}; }
+  function geom() { return {w: cv.clientWidth - L - R, h: cv.clientHeight - T - B}; }
+  // polozenie palca wzgledem samego plotna (odporne na skalowanie widoku przez przegladarke)
+  function pt(e) {
+    if (e.target === cv && isFinite(e.offsetX) && isFinite(e.offsetY)) return {x: e.offsetX, y: e.offsetY};
+    const r = cv.getBoundingClientRect();
+    return {x: (e.clientX - r.left) * cv.clientWidth / r.width, y: (e.clientY - r.top) * cv.clientHeight / r.height};
+  }
 
   function draw() {
-    const r = cv.getBoundingClientRect(), g = geom();
-    ctx.clearRect(0, 0, r.width, r.height);
+    const g = geom();
+    ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
     const lo = num("ymin"), hi = num("ymax");
     ctx.font = "11px " + css("--mono"); ctx.fillStyle = css("--muted"); ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
     const tk = ticks(lo, hi);
@@ -231,8 +243,8 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   }
 
   function at(e) {
-    const r = cv.getBoundingClientRect(), g = geom();
-    const fx = (e.clientX - r.left - L) / g.w, fy = (e.clientY - r.top - T) / g.h;
+    const g = geom(), p = pt(e);
+    const fx = (p.x - L) / g.w, fy = (p.y - T) / g.h;
     const lo = num("ymin"), hi = num("ymax");
     return {i: Math.max(0, Math.min(N - 1, Math.round(fx * (N - 1)))), v: hi - Math.max(0, Math.min(1, fy)) * (hi - lo)};
   }
@@ -248,8 +260,8 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     cv.setPointerCapture(e.pointerId); last = null; put(at(e)); draw(); showCoord(e); e.preventDefault();
   });
   function showCoord(e) {
-    const r = cv.getBoundingClientRect(), g = geom();
-    const fx = Math.max(0, Math.min(1, (e.clientX - r.left - L) / g.w)), fy = Math.max(0, Math.min(1, (e.clientY - r.top - T) / g.h));
+    const g = geom(), p = pt(e);
+    const fx = Math.max(0, Math.min(1, (p.x - L) / g.w)), fy = Math.max(0, Math.min(1, (p.y - T) / g.h));
     const x0 = num("xmin"), x1 = num("xmax"), lo = num("ymin"), hi = num("ymax");
     const dec = getDec();
     const xd = $("xmode").value === "idx" ? 0 : (Math.abs(x1 - x0) <= 20 ? 2 : 1);
@@ -378,6 +390,8 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   cv.addEventListener("pointerup", keep); document.addEventListener("change", keep);
 
   window.addEventListener("resize", size);
+  window.addEventListener("orientationchange", () => setTimeout(size, 250));
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", size);
   if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
   new MutationObserver(draw).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
   size();
