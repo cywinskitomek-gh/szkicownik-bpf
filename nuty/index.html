@@ -256,16 +256,6 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   // ---------- odsluch: dzwiek trzymany przy rysowaniu i na klawiaturze ----------
   let mon = null, keyDown = null;
   function audio() { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); return true; } catch (e) { return false; } }
-  // barwa: alikwoty 1/n jak w pile, parzyste o polowe slabsze ("klarnetowo")
-  let wave = null;
-  function timbre(o) {
-    if (!wave) {
-      const H = 24, re = new Float32Array(H + 1), im = new Float32Array(H + 1);
-      for (let n = 1; n <= H; n++) im[n] = (n % 2 === 0 ? .5 : 1) / n;
-      wave = ac.createPeriodicWave(re, im);
-    }
-    o.setPeriodicWave(wave);
-  }
   const ATTACK = .05, RELEASE = .12, SAFETY = 4000;   // s, s, ms
   let monTimer = 0;
   function guard() {              // bezpiecznik: bez ruchu palca przez 4 s dzwiek gasnie sam
@@ -276,9 +266,9 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     if (!$("mon").checked || !audio()) return;
     if (mon && mon.m === m) { guard(); return; }
     monOff();                     // nowa wysokosc: stary dzwiek wygasa, nowy narasta (bez trzaskow)
-    const f = 440 * Math.pow(2, (m - 69) / 12), t = ac.currentTime, vol = .12 * Math.min(127, num("vel")) / 127;
+    const f = 440 * Math.pow(2, (m - 69) / 12), t = ac.currentTime, vol = .16 * Math.min(127, num("vel")) / 127;
     const o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
-    timbre(o); o.frequency.value = f;
+    o.type = "triangle"; o.frequency.value = f;
     lp.type = "lowpass"; lp.frequency.value = Math.min(8000, f * 6); lp.Q.value = .5;
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + ATTACK);
     o.connect(lp).connect(g).connect(ac.destination); o.start(t); mon = {o, g, m};
@@ -402,7 +392,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   let ac = null, playing = null;
   function tone(m, t0, dur, vol) {
     const o = ac.createOscillator(), g = ac.createGain();
-    timbre(o); o.frequency.value = 440 * Math.pow(2, (m - 69) / 12);
+    o.type = "triangle"; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12);
     g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + Math.min(.03, dur / 3));
     g.gain.setValueAtTime(vol, Math.max(t0 + Math.min(.03, dur / 3), t0 + dur - .03)); g.gain.linearRampToValueAtTime(0, t0 + dur);
     o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + .02);
@@ -412,7 +402,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   $("play").onclick = () => {
     if (playing) { stop(); return; }
     try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch (e) { say("Dźwięk niedostępny w tej przeglądarce.", true); return; }
-    const spt = 60 / Math.max(20, num("bpm")) / PPQ, t0 = ac.currentTime + .08, vol = .13 * Math.min(127, num("vel")) / 127;
+    const spt = 60 / Math.max(20, num("bpm")) / PPQ, t0 = ac.currentTime + .08, vol = .18 * Math.min(127, num("vel")) / 127;
     const osc = notes.map(n => tone(n.p, t0 + n.s * spt, n.l * spt, vol));
     const endT = Math.max(0, ...notes.map(n => n.s + n.l));
     playing = {osc, raf: 0};
