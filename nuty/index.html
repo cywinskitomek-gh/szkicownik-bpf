@@ -75,7 +75,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     <button id="fit">Pokaż wszystko</button>
     <button id="clear">Wyczyść</button>
   </div>
-  <p class="hint">Jeden palec rysuje. Dwa palce: rozsuwanie – powiększenie, przesuwanie – przewijanie. Przeciągnięcie po klawiaturze przewija oktawy, po linijce – takty. Na Macu: kółko/gładzik przewija, z Ctrl – powiększa.</p>
+  <p class="hint">Jeden palec rysuje. Dwa palce: rozsuwanie – powiększenie, przesuwanie – przewijanie. Dotknięcie klawisza gra dźwięk, przeciągnięcie po klawiaturze przewija oktawy, po linijce – takty. Na Macu: kółko/gładzik przewija, z Ctrl – powiększa.</p>
 
   <div class="grid">
     <label for="nm">Nazwa<input id="nm" value="melodia" autocomplete="off"></label>
@@ -95,6 +95,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     <label for="vel">Dynamika (velocity)<input id="vel" type="number" min="1" max="127" step="1" value="100"></label>
   </div>
   <label class="chk" for="join"><input type="checkbox" id="join" checked>Łącz powtórzony dźwięk w jedną dłuższą nutę (w obrębie jednego pociągnięcia)</label>
+  <label class="chk" for="mon"><input type="checkbox" id="mon" checked>Odsłuch: dźwięk przy rysowaniu i przy przytrzymaniu klawisza</label>
 
   <div class="row">
     <button class="primary" id="copy">Kopiuj dla OM</button>
@@ -113,7 +114,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   const PPQ = 480, LO = 21, HI = 108;          // A-1 .. C7 (C3 = 60 = 6000 midicentow)
   const KB = 58, RUL = 22;                      // szerokosc klawiatury, wysokosc linijki
   const NAMES = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
-  const BLACK = [1,3,6,8,10];
+  const BLACK = [1,3,6,8,10], WH = [0,2,4,5,7,9,11];
   const name = m => NAMES[m % 12] + (Math.floor(m / 12) - 2);
   let notes = [], hist = [], mode = "draw";
   let rowH = 16, beatW = 64, sx = 0, sy = 0;   // powiekszenie i przewiniecie (px)
@@ -190,14 +191,14 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     ctx.fillStyle = css("--line"); ctx.fillRect(KB, RUL - 1, w - KB, 1);
     // klawiatura: 7 bialych klawiszy rownej wysokosci na oktawe, czarne miedzy nimi (siatka zostaje rowna)
     ctx.fillStyle = css("--panel"); ctx.fillRect(0, 0, KB, h);
-    const wk = 12 * rowH / 7;
+    const wk = 12 * rowH / 7, lit = keyDown !== null ? keyDown : mon ? mon.m : null;
     for (let o = Math.floor(LO / 12); o * 12 <= HI; o++) {
       const bottom = my(o * 12) + rowH;               // dolna krawedz klawisza C
       for (let i = 0; i < 7; i++) {
         const y1 = bottom - (i + 1) * wk, y2 = bottom - i * wk;
         const top = Math.max(y1, my(Math.min(HI, o * 12 + 11))), bot = Math.min(y2, my(Math.max(LO, o * 12)) + rowH);
         if (bot <= top || bot < RUL || top > h) continue;
-        ctx.fillStyle = css("--white"); ctx.fillRect(0, top, KB - 2, bot - top);
+        ctx.fillStyle = lit === o * 12 + WH[i] ? css("--accent") : css("--white"); ctx.fillRect(0, top, KB - 2, bot - top);
         ctx.fillStyle = css("--grid2"); ctx.fillRect(0, Math.round(y1), KB - 2, 1);
         if (i === 0 && wk >= 10 && o * 12 >= LO) {
           ctx.fillStyle = "#555"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
@@ -209,7 +210,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     for (let m = HI; m >= LO; m--) {
       if (!BLACK.includes(m % 12)) continue;
       const y = my(m); if (y > h || y + rowH < RUL) continue;
-      ctx.fillStyle = css("--black"); ctx.fillRect(0, y, KB * .6, rowH);
+      ctx.fillStyle = m === lit ? css("--accent") : css("--black"); ctx.fillRect(0, y, KB * .6, rowH);
     }
     ctx.fillStyle = css("--line"); ctx.fillRect(KB - 1, 0, 1, h);
     ctx.fillStyle = css("--panel"); ctx.fillRect(0, 0, KB, RUL);
@@ -240,7 +241,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     const prev = stroke.note;
     if (prev && $("join").checked && prev.p === p && prev.s + prev.l === a && notes.includes(prev)) prev.l += s;
     else { const n = {s: a, l: s, p, k: stroke.id}; notes.push(n); stroke.note = n; }
-    stroke.last = a; stroke.lastP = p;
+    stroke.last = a; stroke.lastP = p; monOn(p);
     notes.sort((x, y) => x.s - y.s);
   }
   function stroke2(p0, p1) {      // wypelnij kroki miedzy dwoma punktami
@@ -251,6 +252,35 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     for (let i = 1; i <= n; i++) paint((a0 + dir * i) * s, Math.round(m0 + (m1 - m0) * i / n));
   }
   function snapshot() { hist.push(JSON.stringify(notes)); if (hist.length > 100) hist.shift(); }
+
+  // ---------- odsluch: dzwiek trzymany przy rysowaniu i na klawiaturze ----------
+  let mon = null, keyDown = null;
+  function audio() { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); return true; } catch (e) { return false; } }
+  function monOn(m) {
+    if (!$("mon").checked || !audio() || (mon && mon.m === m)) return;
+    const f = 440 * Math.pow(2, (m - 69) / 12), t = ac.currentTime, vol = .16 * Math.min(127, num("vel")) / 127;
+    if (mon) {                    // nowa wysokosc: krotkie przygaszenie, zeby bylo slychac nowa nute
+      mon.o.frequency.setValueAtTime(f, t);
+      mon.g.gain.cancelScheduledValues(t); mon.g.gain.setValueAtTime(vol * .3, t); mon.g.gain.linearRampToValueAtTime(vol, t + .02);
+      mon.m = m; return;
+    }
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = "triangle"; o.frequency.value = f;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01);
+    o.connect(g).connect(ac.destination); o.start(t); mon = {o, g, m};
+  }
+  function monOff() {
+    if (!mon) return;
+    const t = ac.currentTime, g = mon.g.gain;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + .06); mon.o.stop(t + .08); mon = null;
+  }
+  function keyAt(p) {             // klawisz pod palcem: czarny w lewej czesci, poza tym bialy wg rysunku klawiatury
+    const m = Math.max(LO, Math.min(HI, ym(p.y)));
+    if (p.x < KB * .6 && BLACK.includes(m % 12)) return m;
+    const o = Math.floor(m / 12), bottom = my(o * 12) + rowH, wk = 12 * rowH / 7;
+    const i = Math.max(0, Math.min(6, Math.floor((bottom - p.y) / wk)));
+    return Math.max(LO, Math.min(HI, o * 12 + WH[i]));
+  }
 
   // ---------- dotyk / mysz ----------
   const ptrs = new Map(); let drag = null, pinch = null;
@@ -277,9 +307,9 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
       if (drag && drag.kind === "draw" && drag.snap) { notes = JSON.parse(drag.snap); hist.pop(); }
       const [a, b] = [...ptrs.values()];
       pinch = {dx: Math.abs(a.x - b.x), dy: Math.abs(a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, rowH, beatW, sx, sy};
-      drag = null; $("coord").hidden = true; draw(); return;
+      drag = null; keyDown = null; monOff(); $("coord").hidden = true; draw(); return;
     }
-    if (p.x < KB) { drag = {kind: "scrollY", y: p.y, sy}; return; }
+    if (p.x < KB) { const k = keyAt(p); drag = {kind: "key", y: p.y, sy}; keyDown = k; monOn(k); draw(); return; }
     if (p.y < RUL) { drag = {kind: "scrollX", x: p.x, sx}; return; }
     if (example) { notes = []; example = false; }
     snapshot(); drag = {kind: "draw", snap: hist[hist.length - 1], last: p};
@@ -300,6 +330,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
       clamp(); draw(); return;
     }
     if (!drag) return;
+    if (drag.kind === "key") { if (Math.abs(p.y - drag.y) < 8) return; drag.kind = "scrollY"; keyDown = null; monOff(); }
     if (drag.kind === "scrollY") { sy = drag.sy - (p.y - drag.y); clamp(); draw(); return; }
     if (drag.kind === "scrollX") { sx = drag.sx - (p.x - drag.x); clamp(); draw(); return; }
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
@@ -309,7 +340,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   const up = e => {
     ptrs.delete(e.pointerId);
     if (ptrs.size < 2) pinch = null;
-    if (ptrs.size === 0) { if (drag && drag.kind === "draw") keep(); drag = null; stroke = null; if (e.pointerType !== "mouse") $("coord").hidden = true; }
+    if (ptrs.size === 0) { if (drag && drag.kind === "draw") keep(); drag = null; stroke = null; keyDown = null; monOff(); draw(); if (e.pointerType !== "mouse") $("coord").hidden = true; }
   };
   cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
   cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !ptrs.size) $("coord").hidden = true; });
@@ -339,7 +370,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     } else { rowH = 16; clamp(); sy = (HI - 72) * rowH; }
     sx = 0; clamp(); draw();
   }
-  ["q", "bpm", "beats", "bars", "vel", "nm", "join"].forEach(id => $(id).addEventListener("input", () => { clamp(); draw(); keep(); }));
+  ["q", "bpm", "beats", "bars", "vel", "nm", "join", "mon"].forEach(id => $(id).addEventListener("input", () => { clamp(); draw(); keep(); }));
   function say(t, err) { const s = $("status"); s.textContent = t; s.classList.toggle("err", !!err); }
 
   // ---------- odtwarzanie ----------
@@ -416,10 +447,10 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
 
   // ---------- pamiec ----------
   const FIELDS = ["nm", "q", "bpm", "beats", "bars", "vel"];
-  function keep() { try { localStorage.setItem("nuty-pad", JSON.stringify({notes, set: Object.fromEntries(FIELDS.map(k => [k, $(k).value])), join: $("join").checked})); } catch (e) {} }
+  function keep() { try { localStorage.setItem("nuty-pad", JSON.stringify({notes, set: Object.fromEntries(FIELDS.map(k => [k, $(k).value])), join: $("join").checked, mon: $("mon").checked})); } catch (e) {} }
   try {
     const d = JSON.parse(localStorage.getItem("nuty-pad") || "null");
-    if (d && Array.isArray(d.notes)) { notes = d.notes; example = false; FIELDS.forEach(k => { if (d.set && d.set[k] !== undefined) $(k).value = d.set[k]; }); $("join").checked = d.join !== false; }
+    if (d && Array.isArray(d.notes)) { notes = d.notes; example = false; FIELDS.forEach(k => { if (d.set && d.set[k] !== undefined) $(k).value = d.set[k]; }); $("join").checked = d.join !== false; $("mon").checked = d.mon !== false; }
   } catch (e) {}
 
   window.addEventListener("resize", size);
