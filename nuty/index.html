@@ -256,24 +256,33 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   // ---------- odsluch: dzwiek trzymany przy rysowaniu i na klawiaturze ----------
   let mon = null, keyDown = null;
   function audio() { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); return true; } catch (e) { return false; } }
+  const ATTACK = .05, RELEASE = .12, SAFETY = 4000;   // s, s, ms
+  let monTimer = 0;
+  function guard() {              // bezpiecznik: bez ruchu palca przez 4 s dzwiek gasnie sam
+    clearTimeout(monTimer);
+    if (mon) monTimer = setTimeout(() => { monOff(); keyDown = null; draw(); }, SAFETY);
+  }
   function monOn(m) {
-    if (!$("mon").checked || !audio() || (mon && mon.m === m)) return;
+    if (!$("mon").checked || !audio()) return;
+    if (mon && mon.m === m) { guard(); return; }
+    monOff();                     // nowa wysokosc: stary dzwiek wygasa, nowy narasta (bez trzaskow)
     const f = 440 * Math.pow(2, (m - 69) / 12), t = ac.currentTime, vol = .16 * Math.min(127, num("vel")) / 127;
-    if (mon) {                    // nowa wysokosc: krotkie przygaszenie, zeby bylo slychac nowa nute
-      mon.o.frequency.setValueAtTime(f, t);
-      mon.g.gain.cancelScheduledValues(t); mon.g.gain.setValueAtTime(vol * .3, t); mon.g.gain.linearRampToValueAtTime(vol, t + .02);
-      mon.m = m; return;
-    }
-    const o = ac.createOscillator(), g = ac.createGain();
+    const o = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
     o.type = "triangle"; o.frequency.value = f;
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01);
-    o.connect(g).connect(ac.destination); o.start(t); mon = {o, g, m};
+    lp.type = "lowpass"; lp.frequency.value = Math.min(8000, f * 6); lp.Q.value = .5;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + ATTACK);
+    o.connect(lp).connect(g).connect(ac.destination); o.start(t); mon = {o, g, m};
+    guard();
   }
   function monOff() {
+    clearTimeout(monTimer);
     if (!mon) return;
     const t = ac.currentTime, g = mon.g.gain;
-    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + .06); mon.o.stop(t + .08); mon = null;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + RELEASE);
+    try { mon.o.stop(t + RELEASE + .02); } catch (e) {}
+    mon = null;
   }
+  function allOff() { ptrs.clear(); pinch = null; drag = null; stroke = null; keyDown = null; monOff(); draw(); }
   function keyAt(p) {             // klawisz pod palcem: czarny w lewej czesci, poza tym bialy wg rysunku klawiatury
     const m = Math.max(LO, Math.min(HI, ym(p.y)));
     if (p.x < KB * .6 && BLACK.includes(m % 12)) return m;
@@ -302,7 +311,9 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     });
   }
   cv.addEventListener("pointerdown", e => {
-    cv.setPointerCapture(e.pointerId); const p = pt(e); ptrs.set(e.pointerId, p);
+    if (e.isPrimary) { ptrs.clear(); pinch = null; }   // nowe dotkniecie: zapomnij "zgubione" palce
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+    const p = pt(e); ptrs.set(e.pointerId, p);
     if (ptrs.size === 2) {         // dwa palce: powiekszanie i przewijanie (rysunek z pierwszego palca cofniety)
       if (drag && drag.kind === "draw" && drag.snap) { notes = JSON.parse(drag.snap); hist.pop(); }
       const [a, b] = [...ptrs.values()];
@@ -319,7 +330,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   cv.addEventListener("pointermove", e => {
     const p = pt(e);
     if (!ptrs.has(e.pointerId)) { if (e.pointerType === "mouse") showCoord(p, false); return; }
-    ptrs.set(e.pointerId, p);
+    ptrs.set(e.pointerId, p); if (mon) guard();
     if (pinch && ptrs.size >= 2) {
       const [a, b] = [...ptrs.values()];
       const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
@@ -343,6 +354,10 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
     if (ptrs.size === 0) { if (drag && drag.kind === "draw") keep(); drag = null; stroke = null; keyDown = null; monOff(); draw(); if (e.pointerType !== "mouse") $("coord").hidden = true; }
   };
   cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  cv.addEventListener("lostpointercapture", up);
+  window.addEventListener("pointerup", e => { if (ptrs.has(e.pointerId)) up(e); });
+  window.addEventListener("blur", allOff);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) allOff(); });
   cv.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !ptrs.size) $("coord").hidden = true; });
   cv.addEventListener("wheel", e => {
     e.preventDefault();
@@ -378,8 +393,8 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   function tone(m, t0, dur, vol) {
     const o = ac.createOscillator(), g = ac.createGain();
     o.type = "triangle"; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12);
-    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + .01);
-    g.gain.setValueAtTime(vol, Math.max(t0 + .01, t0 + dur - .03)); g.gain.linearRampToValueAtTime(0, t0 + dur);
+    g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(vol, t0 + Math.min(.03, dur / 3));
+    g.gain.setValueAtTime(vol, Math.max(t0 + Math.min(.03, dur / 3), t0 + dur - .03)); g.gain.linearRampToValueAtTime(0, t0 + dur);
     o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + .02);
     return o;
   }

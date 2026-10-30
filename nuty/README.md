@@ -15,7 +15,7 @@ Instalacja na iPhonie: Safari → Udostępnij → „Do ekranu początkowego”;
 - Okienko nad palcem pokazuje dźwięk (C3 = 6000 midicentów) i pozycję takt.miara.krok.
 - **Gumka** usuwa nuty, **Cofnij** cofa ostatnie pociągnięcie, **Odtwórz** gra prostym dźwiękiem, **Pokaż wszystko** dopasowuje widok.
 - „Łącz powtórzony dźwięk” – ta sama wysokość w jednym pociągnięciu daje jedną dłuższą nutę; wyłączone – osobne nuty co krok.
-- „Odsłuch” – przy rysowaniu słychać rysowaną nutę, a przytrzymanie klawisza po lewej gra jego dźwięk (klawisz podświetla się na czerwono). Przeciągnięcie po klawiaturze nadal przewija oktawy.
+- „Odsłuch” – przy rysowaniu słychać rysowaną nutę, a przytrzymanie klawisza po lewej gra jego dźwięk (klawisz podświetla się na czerwono). Bezpiecznik: gdy palec stoi w miejscu dłużej niż 4 s, dźwięk gaśnie sam. Przeciągnięcie po klawiaturze nadal przewija oktawy.
 
 ## Ustawienia
 
