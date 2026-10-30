@@ -258,9 +258,9 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   // ---------- odsluch: dzwiek trzymany przy rysowaniu i na klawiaturze ----------
   let mon = null, keyDown = null;
   function audio() { try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); return true; } catch (e) { return false; } }
-  const ATTACK = .05, RELEASE = .12, SAFETY = 4000;   // s, s, ms
+  const ATTACK = .05, RELEASE = .12, SAFETY = 2000;   // s, s, ms
   let monTimer = 0;
-  function guard() {              // bezpiecznik: bez ruchu palca przez 4 s dzwiek gasnie sam
+  function guard() {              // bezpiecznik: bez ruchu palca przez 2 s dzwiek gasnie sam
     clearTimeout(monTimer);
     if (mon) monTimer = setTimeout(() => { monOff(); keyDown = null; draw(); }, SAFETY);
   }
