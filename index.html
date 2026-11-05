@@ -245,10 +245,10 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
       ctx.stroke();
       if (N <= 64) { ctx.fillStyle = css("--curve");
         res.y.forEach((v, i) => { ctx.beginPath(); ctx.arc(L + g.w * i / (N - 1), T + g.h * (hi - v) / (hi - lo), 2.4, 0, 7); ctx.fill(); }); }
-      // punkt rysowania: tam, gdzie aplikacja odczytuje palec; srednica = grubosc kreski
+      // punkt rysowania: miejsce na narysowanej krzywej (po precyzji i wygladzeniu); srednica = grubosc kreski
       if (drawing && last) {
         ctx.fillStyle = css("--ink"); ctx.beginPath();
-        ctx.arc(L + g.w * last.i / (N - 1), T + g.h * (hi - last.v) / (hi - lo), ctx.lineWidth / 2, 0, 7); ctx.fill();
+        ctx.arc(L + g.w * last.i / (N - 1), T + g.h * (hi - res.y[last.i]) / (hi - lo), ctx.lineWidth / 2, 0, 7); ctx.fill();
       }
       // tekst dla OM odswiezany dopiero po oderwaniu palca - przy tysiacach punktow rysowanie zostaje plynne
       if (!editing && !drawing) $("out").value = text(res);
