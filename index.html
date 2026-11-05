@@ -178,10 +178,10 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     return Math.max(Math.ceil(a / s) * s, Math.min(Math.floor(b / s) * s, r));
   }
   // podzialka y na okraglych wartosciach (1, 2, 5 x 10^k)
-  function ticks(lo, hi) {
+  function ticks(lo, hi, n = 8, minStep = 0) {
     const a = Math.min(lo, hi), b = Math.max(lo, hi), span = b - a;
     if (!(span > 0)) return {vals: [a], d: 0};
-    const raw = span / 8, p = Math.pow(10, Math.floor(Math.log10(raw)));
+    const raw = Math.max(span / n, minStep), p = Math.pow(10, Math.floor(Math.log10(raw)));
     const step = [1, 2, 5, 10].map(m => m * p).find(s => s >= raw) || 10 * p;
     const vals = []; for (let v = Math.ceil(a / step) * step; v <= b + step * 1e-9; v += step) vals.push(v);
     return {vals, d: Math.max(0, -Math.floor(Math.log10(step) + 1e-9))};
@@ -218,13 +218,23 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
       ctx.textAlign = "right"; ctx.textBaseline = "middle";
       ctx.fillText(v.toFixed(tk.d), L - 6, yy);
     });
-    for (let k = 0; k <= 8; k++) {
-      const xx = L + g.w * k / 8;
-      ctx.beginPath(); ctx.moveTo(xx, T); ctx.lineTo(xx, T + g.h); ctx.stroke();
-    }
+    // podzialka x: okragle wartosci z liczbami pod kazda kreska; gestosc dobrana do szerokosci pola
     const x0 = num("xmin"), x1 = num("xmax");
-    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillText(String(x0), L, T + g.h + 16);
-    ctx.textAlign = "right"; ctx.fillText(String(x1), L + g.w, T + g.h + 16);
+    const isIdx = $("xmode").value === "idx";
+    const chars = Math.max(String(x0).length, String(x1).length) + 1;
+    const nx = Math.max(2, Math.min(10, Math.floor(g.w / (chars * 7 + 16))));
+    const tx = ticks(x0, x1, nx, isIdx ? 1 : 0);
+    ctx.textBaseline = "alphabetic";
+    tx.vals.forEach(v => {
+      const xx = x1 === x0 ? L : L + g.w * (v - x0) / (x1 - x0);
+      ctx.strokeStyle = css("--grid");
+      ctx.beginPath(); ctx.moveTo(xx, T); ctx.lineTo(xx, T + g.h); ctx.stroke();
+      ctx.strokeStyle = css("--muted");
+      ctx.beginPath(); ctx.moveTo(xx, T + g.h); ctx.lineTo(xx, T + g.h + 4); ctx.stroke();
+      const s = v.toFixed(tx.d), w = ctx.measureText(s).width;
+      ctx.textAlign = xx - w / 2 < L - 6 ? "left" : (xx + w / 2 > L + g.w + R - 2 ? "right" : "center");
+      ctx.fillText(s, ctx.textAlign === "left" ? Math.max(xx, L - 6) : xx, T + g.h + 16);
+    });
     const res = result();
     if (res) {
       ctx.strokeStyle = css("--curve"); ctx.lineWidth = 2.2; ctx.lineJoin = "round"; ctx.beginPath();

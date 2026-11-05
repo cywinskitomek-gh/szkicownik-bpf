@@ -1,7 +1,7 @@
 // Szkicownik BPF - praca bez sieci.
 // Z internetem zawsze najnowsza wersja z serwera (i zapis do pamieci), bez internetu - z pamieci.
 // Przy zmianie plikow podnies numer wersji.
-const CACHE = "szkicownik-bpf-v11";
+const CACHE = "szkicownik-bpf-v12";
 const FILES = ["./", "index.html", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
