@@ -94,7 +94,7 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     <label for="xmode">Oś x<select id="xmode"><option value="idx">numer punktu 0…N−1</option><option value="own">własny zakres</option></select></label>
     <label for="xmin">x min<input id="xmin" type="number" step="any" value="0" disabled></label>
     <label for="xmax">x max<input id="xmax" type="number" step="any" value="127" disabled></label>
-    <label for="npts">Punkty<input id="npts" type="number" min="2" max="2000" step="1" value="128"></label>
+    <label for="npts">Punkty<input id="npts" type="number" min="2" max="10000" step="1" value="128"></label>
     <label for="dec">Precyzja<input id="dec" type="number" min="-3" max="10" step="1" value="0"></label>
     <label for="smooth">Wygładzenie <span id="smv">2</span><input id="smooth" type="range" min="0" max="12" step="1" value="2"></label>
   </div>
@@ -328,7 +328,7 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   }
   $("xmode").addEventListener("change", () => { syncX(); draw(); });
   $("npts").addEventListener("change", () => {
-    const n = Math.max(2, Math.min(2000, parseInt($("npts").value, 10) || 128));
+    const n = Math.max(2, Math.min(10000, parseInt($("npts").value, 10) || 128));
     $("npts").value = n; resample(n); syncX(); draw();
   });
   $("clear").addEventListener("click", () => { ys = new Array(N).fill(NaN); example = false; draw(); say("Wyczyszczono."); });
