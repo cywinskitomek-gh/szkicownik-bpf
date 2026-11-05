@@ -116,7 +116,7 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   const $ = id => document.getElementById(id);
   const cv = $("cv"), ctx = cv.getContext("2d");
   const presets = {mc:[2100,10800,0], tension:[113,244,0], unit:[0,1,3], bi:[-1,1,3], sigma:[0,2400,0]};
-  let N = 128, ys = new Array(N).fill(NaN), example = true, last = null, db = null, editing = false, bad = false;
+  let N = 128, ys = new Array(N).fill(NaN), example = true, last = null, db = null, editing = false, bad = false, drawing = false;
 
   // przyklad: lagodny luk, zeby pierwszy widok pokazywal dzialanie
   for (let i = 0; i < N; i++) ys[i] = 6000 + 1800 * Math.sin(i / (N - 1) * Math.PI) - 600 * Math.sin(i / (N - 1) * 3 * Math.PI);
@@ -245,8 +245,9 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
       ctx.stroke();
       if (N <= 64) { ctx.fillStyle = css("--curve");
         res.y.forEach((v, i) => { ctx.beginPath(); ctx.arc(L + g.w * i / (N - 1), T + g.h * (hi - v) / (hi - lo), 2.4, 0, 7); ctx.fill(); }); }
-      if (!editing) $("out").value = text(res);
-    } else if (!editing) $("out").value = "";
+      // tekst dla OM odswiezany dopiero po oderwaniu palca - przy tysiacach punktow rysowanie zostaje plynne
+      if (!editing && !drawing) $("out").value = text(res);
+    } else if (!editing && !drawing) $("out").value = "";
     $("badge").hidden = !example;
     $("badge").textContent = "przykład";
   }
@@ -266,7 +267,7 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
   }
   cv.addEventListener("pointerdown", e => {
     if (example) { ys = new Array(N).fill(NaN); example = false; }
-    cv.setPointerCapture(e.pointerId); last = null; put(at(e)); draw(); showCoord(e); e.preventDefault();
+    cv.setPointerCapture(e.pointerId); drawing = true; last = null; put(at(e)); draw(); showCoord(e); e.preventDefault();
   });
   function showCoord(e) {
     const g = geom(), p = pt(e);
@@ -298,7 +299,7 @@ section h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.07em;color:
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
     evs.forEach(ev => put(at(ev))); draw();
   });
-  const end = () => { last = null; };
+  const end = () => { last = null; if (drawing) { drawing = false; draw(); } };
   cv.addEventListener("pointerup", end); cv.addEventListener("pointercancel", end);
 
   function resample(n) {
