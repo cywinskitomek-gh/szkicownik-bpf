@@ -182,6 +182,12 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
       ctx.fillStyle = css("--note"); ctx.fillRect(Math.max(KB, x) + .5, y + 1, Math.max(2, x2 - Math.max(KB, x) - 1), rowH - 2);
       ctx.fillStyle = css("--noteb"); ctx.fillRect(Math.max(KB, x) + .5, y + 1, 2, rowH - 2);
     });
+    // podswietlenie miejsca rysowania: polton w pionie, krok kwantyzacji w poziomie
+    if (drag && drag.kind === "draw" && stroke && stroke.cur) {
+      const x = tx(stroke.cur.a), y = my(stroke.cur.p), cw = beatW * q() / PPQ;
+      ctx.strokeStyle = css("--ink"); ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, Math.max(2, cw - 2), Math.max(2, rowH - 2));
+    }
     // linijka
     ctx.fillStyle = css("--panel"); ctx.fillRect(KB, 0, w - KB, RUL);
     ctx.font = "11px " + css("--mono"); ctx.textBaseline = "middle"; ctx.textAlign = "left";
@@ -236,6 +242,7 @@ textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.78r
   function paint(t, p) {
     const s = q(), a = Math.floor(t / s) * s;
     if (a < 0 || a >= total()) return;
+    stroke.cur = {a, p: Math.max(LO, Math.min(HI, p))};   // komorka pod palcem (do podswietlenia)
     if (mode === "erase") { cut(a, a + s); return; }
     p = Math.max(LO, Math.min(HI, p));
     if (stroke.last === a && stroke.lastP === p) return;
