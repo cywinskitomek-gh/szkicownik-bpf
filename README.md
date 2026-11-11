@@ -1,3 +1,5 @@
+**Strony przeniesione / moved:** https://tomaszcywinski.pl/szkicownik/ i https://tomaszcywinski.pl/szkicownik/nuty/ (adresy na GitHub Pages tylko przekierowują; poprzednia wersja jest w historii repozytorium).
+
 # Szkicownik BPF
 
 Rysowanie krzywych palcem lub rysikiem (iPhone, iPad, Mac) i przenoszenie ich do OpenMusic jako BPF.
